@@ -1286,6 +1286,7 @@
     "type": "wms",
     "server_layer_name": "wai_dekad",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1316,6 +1317,7 @@
     "type": "wms",
     "server_layer_name": "wai_seasonal_2month",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1346,6 +1348,7 @@
     "type": "wms",
     "server_layer_name": "wai_seasonal_3month",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1376,6 +1379,7 @@
     "type": "wms",
     "server_layer_name": "wai_seasonal_4month",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",    
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1406,6 +1410,7 @@
     "type": "wms",
     "server_layer_name": "wai_seasonal_5month",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1436,6 +1441,7 @@
     "type": "wms",
     "server_layer_name": "wai_seasonal_6month",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1466,6 +1472,7 @@
     "type": "wms",
     "server_layer_name": "wai_dekad",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1496,6 +1503,7 @@
     "type": "wms",
     "server_layer_name": "wai_seasonal_2month",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1526,6 +1534,7 @@
     "type": "wms",
     "server_layer_name": "wai_seasonal_3month",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1556,6 +1565,7 @@
     "type": "wms",
     "server_layer_name": "wai_seasonal_4month",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1586,6 +1596,7 @@
     "type": "wms",
     "server_layer_name": "wai_seasonal_5month",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
@@ -1616,6 +1627,7 @@
     "type": "wms",
     "server_layer_name": "wai_seasonal_6month",
     "base_url": "https://api.earthobservation.vam.wfp.org/ows/",
+    "content_path": "docs/wai.md",
     "date_interval": "days",
     "wcsConfig": {
       "version": "2.0.0",
