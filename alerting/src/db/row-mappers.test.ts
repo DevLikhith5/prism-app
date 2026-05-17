@@ -130,6 +130,7 @@ describe('row-mappers', () => {
         lastTriggeredAt: row.last_triggered_at,
         lastRanAt: row.last_ran_at,
         lastStates,
+        metadata: undefined,
       });
     });
 
@@ -143,12 +144,14 @@ describe('row-mappers', () => {
         last_triggered_at: null,
         last_ran_at: null,
         last_states: null,
+        metadata: { floodDatesUrl: 'https://example.org/dates.json' },
       };
 
       const mapped = mapAnticipatoryActionAlertRow(row);
       expect(mapped.lastStates).toBeUndefined();
       expect(mapped.lastTriggeredAt).toBeUndefined();
       expect(mapped.lastRanAt).toBeUndefined();
+      expect(mapped.metadata).toEqual({ floodDatesUrl: 'https://example.org/dates.json' });
     });
   });
 });

@@ -4,14 +4,15 @@
  */
 import { runAlertWorker } from '../alert-worker';
 import { closePool } from '../db/pool';
-import { findAnticipatoryActionAlerts } from '../db/aa-queries';
+import { findAnticipatoryActionAlerts, findAllAnticipatoryActionAlertsByType } from '../db/aa-queries';
 
 async function main(): Promise<void> {
   await findAnticipatoryActionAlerts('Mozambique', 'storm');
   await findAnticipatoryActionAlerts('Mozambique', 'flood');
+  await findAllAnticipatoryActionAlertsByType('flood');
   await runAlertWorker();
   await closePool();
-  console.log('Alerting worker smoke OK (threshold + AA storm/flood queries)');
+  console.log('Alerting worker smoke OK (threshold + AA storm + AA flood list)');
 }
 
 main().catch((e) => {

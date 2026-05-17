@@ -28,7 +28,7 @@
                         <%= title %>
                     </h1>
                     <p class="content-subtitle" style="margin: 0 0 20px; font-size: 14px;">
-                        Flood Anticipatory Action Alert for Mozambique – forecast by GloFAS with data processing by WFP
+                        Flood Anticipatory Action Alert for <%= countryDisplayName %> – <%= forecastAttributionLine %>
                     </p>
                     <p class="trigger-title"
                         style="margin: 10px 0 20px; width: 100%; font-weight: bold; font-size: 16px;">
@@ -39,7 +39,7 @@
                             <% const stationList=stationsByStatus[status]; %>
                                 <p style="margin: 0 0 10px; line-height: 1.6;">
                                     River discharge levels may exceed the <%= status %> threshold at <%=
-                                            stationList.join(', ') %> in Mozambique within the next 3 to 5 days.
+                                            stationList.join(', ') %> in <%= countryDisplayName %> within the next <%= forecastLeadDaysPhrase %> days.
                             </p>
                         <% }); %>
                     <% } %>
@@ -59,7 +59,7 @@
                                     style="width: 24px; height: 24px; vertical-align: middle; margin-right: 8px;"> Gauge
                                 Map
                             </h3>
-                            <img src="cid:flood-image-cid" alt="Map showing the gauge status over Mozambique"
+                            <img src="cid:flood-image-cid" alt="Map showing the gauge status over <%= mapAltCountry %>"
                                 width="100%" style="border: none;">
 
                             <p style="margin-top: 20px;">
@@ -72,7 +72,7 @@
                                 style="background-color: rgba(241, 241, 241, 1); padding: 20px; margin-top: 20px; color: black;">
                                 <strong>Disclaimer</strong>: This alert is automatically generated based on an evaluation of the latest forecast. 
                                 It does not represent an official activation. The official decision regarding Anticipatory Action activation will be 
-                                made and communicated by <strong>INGD (Instituto Nacional de Gestão e Redução do Risco de Desastres)</strong>.
+                                made and communicated by <%= disclaimerAuthorityHtml %>.
                             </p>
                 </div>
             </main>
@@ -92,14 +92,14 @@
     <% } else { %>
         PRISM FLOOD ALERT - <%= title %>
 
-            Flood Anticipatory Action Alert for Mozambique – forecast by GloFAS with data processing by WFP
+            Flood Anticipatory Action Alert for <%= countryDisplayName %> – <%= forecastAttributionLine %>
 
             Trigger detection: <%= triggerStatus %>. This is not an official activation. 
 
             <% if (stationsByStatus && Object.keys(stationsByStatus).length > 0) { %>
                 <% Object.keys(stationsByStatus).forEach((status) => { %>
                     <% const stationList = stationsByStatus[status]; %>
-                    River discharge levels may exceed the <%= status %> threshold at <%= stationList.join(' , ') %> in Mozambique within the next 3 to 5 days.
+                    River discharge levels may exceed the <%= status %> threshold at <%= stationList.join(' , ') %> in <%= countryDisplayName %> within the next <%= forecastLeadDaysPhrase %> days.
                 <% }); %>
             <% } %>
 
@@ -109,5 +109,5 @@
 
                                         Disclaimer: This alert is automatically generated based on an evaluation of the latest forecast. 
                                         It does not represent an official activation. The official decision regarding Anticipatory Action 
-                                        activation will be made and communicated by INGD (Instituto Nacional de Gestão e Redução do Risco de Desastres).
+                                        activation will be made and communicated by <%= disclaimerAuthorityPlain %>.
                                         <% } %>

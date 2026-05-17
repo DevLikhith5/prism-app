@@ -1,6 +1,8 @@
 import nodeFetch from 'node-fetch';
 import { captureScreenshotFromUrl } from '../utils/capture-utils';
 import { formatDate } from '../utils/date';
+import type { AnticipatoryActionAlert } from '../types/anticipatory-action-alerts';
+import type { AAFloodAlertMetadata } from '../types/aa-flood-metadata';
 import {
   FloodAlertEmailData,
   TRIGGER_STATUSES,
@@ -97,13 +99,92 @@ export function shouldSendFloodEmail(trigger?: string): boolean {
   );
 }
 
+export function floodLastStateKey(alertId: number): string {
+  return `flood_alert_${alertId}`;
+}
+
+/** Drops legacy single-country cursor key when migrating to `flood_alert_<id>`. */
+export function stripLegacyMozFloodKey(
+  prev?: Record<string, { status: string; refTime: string }>,
+): Record<string, { status: string; refTime: string }> {
+  if (!prev) {
+    return {};
+  }
+  const rest = { ...prev };
+  delete rest.moz_flood;
+  return rest;
+}
+
+export function forecastLeadDaysPhrase(min: number, max: number): string {
+  if (min === max) {
+    return String(min);
+  }
+  return `${min} to ${max}`;
+}
+
+export type ResolvedFloodEmailCopy = Pick<
+  FloodAlertEmailData,
+  | 'countryDisplayName'
+  | 'forecastLeadDaysPhrase'
+  | 'forecastAttributionLine'
+  | 'disclaimerAuthorityHtml'
+  | 'disclaimerAuthorityPlain'
+  | 'mapAltCountry'
+>;
+
+const DEFAULT_FORECAST_ATTRIBUTION =
+  'forecast by GloFAS with data processing by WFP';
+
+const DEFAULT_DISCLAIMER_AUTHORITY_HTML =
+  '<strong>INGD (Instituto Nacional de Gestão e Redução do Risco de Desastres)</strong>';
+
+const DEFAULT_DISCLAIMER_AUTHORITY_PLAIN =
+  'INGD (Instituto Nacional de Gestão e Redução do Risco de Desastres)';
+
+function stripHtmlTags(html: string): string {
+  return html.replace(/<[^>]*>/g, '').trim();
+}
+
+export function resolveFloodEmailCopy(
+  alert: Pick<AnticipatoryActionAlert, 'country' | 'metadata'>,
+): ResolvedFloodEmailCopy {
+  const m = (alert.metadata || {}) as AAFloodAlertMetadata;
+  const min = m.forecastLeadDaysMin ?? 3;
+  const max = m.forecastLeadDaysMax ?? 5;
+  const countryDisplayName =
+    (typeof m.countryDisplayName === 'string' && m.countryDisplayName) ||
+    alert.country;
+  const disclaimerAuthorityHtml =
+    (typeof m.disclaimerAuthorityHtml === 'string' &&
+      m.disclaimerAuthorityHtml) ||
+    DEFAULT_DISCLAIMER_AUTHORITY_HTML;
+  const disclaimerAuthorityPlain =
+    (typeof m.disclaimerAuthorityPlain === 'string' &&
+      m.disclaimerAuthorityPlain) ||
+    stripHtmlTags(disclaimerAuthorityHtml) ||
+    DEFAULT_DISCLAIMER_AUTHORITY_PLAIN;
+  return {
+    countryDisplayName,
+    forecastLeadDaysPhrase: forecastLeadDaysPhrase(min, max),
+    forecastAttributionLine:
+      (typeof m.forecastAttributionLine === 'string' &&
+        m.forecastAttributionLine) ||
+      DEFAULT_FORECAST_ATTRIBUTION,
+    disclaimerAuthorityHtml,
+    disclaimerAuthorityPlain,
+    mapAltCountry:
+      (typeof m.mapAltCountry === 'string' && m.mapAltCountry) ||
+      countryDisplayName,
+  };
+}
+
 export function transformLastProcessedFlood(
   date: string,
   trigger: string,
+  lastStateKey: string,
 ): Record<string, { status: string; refTime: string }> {
-  // key by flood for moz we use single-key tracking by date
   return {
-    moz_flood: { status: trigger, refTime: date },
+    [lastStateKey]: { status: trigger, refTime: date },
   };
 }
 
@@ -120,7 +201,8 @@ export async function buildFloodEmailPayload(
   triggerStatus: TriggerStatus,
   basicPrismUrl: string,
   emails: string[],
-  stationSummaryUrl?: string,
+  stationSummaryUrl: string | undefined,
+  copy: ResolvedFloodEmailCopy,
 ): Promise<FloodAlertEmailData | null> {
   if (!shouldSendFloodEmail(triggerStatus)) return null;
 
@@ -133,7 +215,7 @@ export async function buildFloodEmailPayload(
 
   // Format date as DD-Month-YYYY for title
   const formattedDate = formatDate(dateIso, 'DD-Month-YYYY');
-  const title = `Flood Anticipatory Actions Trigger detected in Mozambique (${formattedDate})`;
+  const title = `Flood Anticipatory Actions Trigger detected in ${copy.countryDisplayName} (${formattedDate})`;
 
   // Fetch station data if available
   let stations: FloodAlertEmailData['stations'] = [];
@@ -180,5 +262,6 @@ export async function buildFloodEmailPayload(
     stationsByStatus,
     redirectUrl,
     base64Image,
+    ...copy,
   };
 }

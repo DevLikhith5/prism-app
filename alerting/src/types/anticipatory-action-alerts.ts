@@ -10,4 +10,6 @@ export type AnticipatoryActionAlert = {
   lastTriggeredAt?: Date;
   lastRanAt?: Date;
   lastStates?: Record<string, { status: string; refTime: string }>;
+  /** Mirrors PG column `metadata` (JSONB). */
+  metadata?: Record<string, unknown>;
 };

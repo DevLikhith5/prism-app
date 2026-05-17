@@ -16,35 +16,37 @@ The alerting stack uses the same PostgreSQL database as the PRISM API for `alert
 - `anticipatory action storm` alerts
   - Checks latest storm forecast reports, decides triggers, sends alert emails when necessary.
 - `anticipatory action flood` alerts
-  - Reads flood `dates.json` (Mozambique), evaluates `trigger_status` (bankfull/moderate/severe), sends alert emails with a map screenshot.
+  - Loads **all** `anticipatory_action_alerts` rows with `type = flood`. Each row’s `metadata.floodDatesUrl` must point at `dates.json`. Evaluates `trigger_status`, sends email when thresholds hit, map screenshot uses that row’s `prism_url`.
 
 ## Setup - anticipatory action alerts
 
 - Alerts are triggered by a cron job running within the `alerting-node` process.
 - Run `docker compose up` to launch the `alerting-node` and `alerting-db` processes.
-- The system checks database entries to determine **which country** needs to be triggered.
-- Currently, **Mozambique is supported**. After the DB schema exists, seed local data from the **API** (same repo area that owns migrations)—see **Local dev seed data** in [`api/README.md`](../api/README.md): `poetry run python scripts/seed_alerts_db.py` from `api/`. Connection vars are `PRISM_ALERTS_DATABASE_URL` or `POSTGRES_*` in `api/.env`; for host access to `alerting-db`, use port `54321` as in [`.env.example`](./.env.example).
+- **Storm:** worker queries alerts by country + type (single-country env constant today).
+- **Flood:** one cron run processes **every** flood row; each row carries its own data URL and recipients in the database (see `metadata` below).
+- After the DB schema exists, seed local data from the **API** (same repo area that owns migrations)—see **Local dev seed data** in [`api/README.md`](../api/README.md): `poetry run python scripts/seed_alerts_db.py` from `api/`. Connection vars are `PRISM_ALERTS_DATABASE_URL` or `POSTGRES_*` in `api/.env`; for host access to `alerting-db`, use port `54321` as in [`.env.example`](./.env.example).
 
-- **country**: The target country for the alert.  
-- **emails**: A list of email addresses that will receive the alert notification.  
-- **prism_url**: The base URL of the PRISM platform for redirection link and screenshot capture.
+- **country**: Display / matching string for the alert (case-insensitive for storm lookups via `ILIKE`).
+- **emails**: Recipients.
+- **prism_url**: Base URL for screenshot + deep link (must match that deployment’s frontend).
 - **type**: Hazard type enum: `storm` | `flood` | `drought`.
+- **metadata** (JSONB, optional): Hazard-specific config. For **`flood`**, set at least:
+  - **`floodDatesUrl`**: Full URL to `dates.json` (same layout as the PRISM frontend `anticipatoryActionFloodUrl`).
+  - Optional email/chart copy overrides: `countryDisplayName`, `forecastLeadDaysMin`, `forecastLeadDaysMax`, `forecastAttributionLine`, `disclaimerAuthorityHtml`, `disclaimerAuthorityPlain`, `mapAltCountry`.
 
 The `type` column is a PostgreSQL ENUM (`anticipatory_action_alerts_type_enum`) defined by the Alembic baseline under `api/alembic/versions/`.
 
 ### Optional: threshold `alert` rows + `kobo_users` (local testing)
 
-For [Starlette Admin](https://github.com/jowilf/starlette-admin) or API smoke tests, use the same seed step as above: from `api/`, run `poetry run python scripts/seed_alerts_db.py`. That executes [`api/scripts/seed_local_alerts_dev.sql`](../api/scripts/seed_local_alerts_dev.sql), which loads sample `alert` and `kobo_users` rows (and the Mozambique AA rows) in one shot. Re-running is safe: see comments at the top of that SQL file.
+For [Starlette Admin](https://github.com/jowilf/starlette-admin) or API smoke tests, use the same seed step as above: from `api/`, run `poetry run python scripts/seed_alerts_db.py`. That executes [`api/scripts/seed_local_alerts_dev.sql`](../api/scripts/seed_local_alerts_dev.sql), which loads sample `alert` and `kobo_users` rows (and the Mozambique AA rows, including flood `metadata`) in one shot. Re-running is safe: see comments at the top of that SQL file.
 
 - **User password:** with `salt = 'false'`, the PRISM API validates this row using a **plain-text** password match ([`prism_app/auth.py`](../api/prism_app/auth.py))—use HTTP Basic `local_dev_user` / `localdev` when auth is enabled.
 
 ### Shared worker runner
 
-Both storm and flood workers use a shared runner at `src/aa-common/runner.ts` to handle:
-- DB connection, alert lookup by `country` and `type`, and test override wiring
-- A `prepare` hook to fetch shared data once per run
-- A `buildForAlert` hook to create email payloads and updated `lastStates` per alert row
-- Sending payloads and updating `lastRanAt`/`lastTriggeredAt`/`lastStates`
+**Storm** alerts use `src/aa-common/runner.ts` for DB lookup by country + type, shared `prepare`, per-alert email build, send, and `last_states` updates.
+
+**Flood** alerts use the same DB helpers (`findAllAnticipatoryActionAlertsByType`, `updateAnticipatoryActionAlert`) but **do not** call `runAAWorker`: each flood row supplies its own `metadata.floodDatesUrl`, so the worker loops rows and fetches `dates.json` per row.
 
 Hazard-specific logic lives in:
 - Storm: `src/aa-storm-alert/alert.ts` and `src/aa-storm-alert/worker.ts`
@@ -80,9 +82,10 @@ This is independent of **`--testEmail`**: you can keep using test addresses in t
 Each run may use a new Ethereal account. To reuse one inbox, configure Ethereal’s SMTP user/password yourself via `PRISM_ALERTS_EMAIL_USER`, `PRISM_ALERTS_EMAIL_PASSWORD`, and `PRISM_ALERTS_EMAIL_HOST` (e.g. `smtp.ethereal.email`).
 
 ### Flood data source
-- The flood worker reads `dates.json`: `https://data.earthobservation.vam.wfp.org/public-share/aa/flood/moz/dates.json`.
+- Each flood alert row provides **`metadata.floodDatesUrl`** (must end with `dates.json`; CSV siblings resolve relative to that URL, same as the frontend).
+- Mozambique installs are **backfilled** on migration with the historical public `moz/dates.json` URL when `metadata` was null.
 - Email triggers when `trigger_status` is one of: `bankfull`, `moderate`, `severe`.
-- Email content follows the AA Flood design and includes a map screenshot and CTA link.
+- Duplicate suppression uses `last_states.flood_alert_<id>` (legacy key `moz_flood` is still read once for migration).
 
 ## CI and release checks (shared alerts database)
 
@@ -90,7 +93,7 @@ GitHub Actions job **`alerts_db_alembic_and_alerting`** (in [`.github/workflows/
 
 1. **`yarn check-alerts-db-contract`** — Validates tables/columns/types the Node workers query still match the migrated schema (`src/ci/check-alerts-db-contract.ts`). Requires `PRISM_ALERTS_DATABASE_URL`.
 2. **`yarn smoke-alerts-db-pool`** — Runs real `pg` queries used by threshold and AA workers (empty tables OK; `src/ci/smoke-alerts-db-pool.ts`).
-3. **`yarn smoke-alerting-workers`** — Runs `runAlertWorker()` plus AA storm/flood `SELECT`s on the same pool (`src/ci/smoke-alerting-workers.ts`; safe when there are no active alerts).
+3. **`yarn smoke-alerting-workers`** — Runs `runAlertWorker()` plus AA storm queries and flood `findAllAnticipatoryActionAlertsByType('flood')` (`src/ci/smoke-alerting-workers.ts`; safe when there are no active alerts).
 
 The same job then runs **`pytest`** on `test_api.py`, `test_alerting.py`, and **`test_alerts_db_integration.py`** so the API, `/stats` alerting fixture, admin list routes, and Alembic metadata align with that database. See [api/README.md](../api/README.md) (**Alerts database (CI integration + local)**).
 

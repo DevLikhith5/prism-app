@@ -19,10 +19,36 @@ export async function findAnticipatoryActionAlerts(
       prism_url,
       last_triggered_at,
       last_ran_at,
-      last_states
+      last_states,
+      metadata
     FROM anticipatory_action_alerts
     WHERE country ILIKE $1 AND type = $2`,
     [country, type],
+  );
+  return res.rows.map((row) =>
+    mapAnticipatoryActionAlertRow(row as Record<string, unknown>),
+  );
+}
+
+/** All rows for a hazard type (flood worker: one cron run processes every country). */
+export async function findAllAnticipatoryActionAlertsByType(
+  type: AnticipatoryActionHazardType,
+): Promise<AnticipatoryActionAlert[]> {
+  const pool = getPool();
+  const res = await pool.query(
+    `SELECT
+      id,
+      country,
+      type::text AS type,
+      emails,
+      prism_url,
+      last_triggered_at,
+      last_ran_at,
+      last_states,
+      metadata
+    FROM anticipatory_action_alerts
+    WHERE type = $1`,
+    [type],
   );
   return res.rows.map((row) =>
     mapAnticipatoryActionAlertRow(row as Record<string, unknown>),

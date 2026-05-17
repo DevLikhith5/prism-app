@@ -1,11 +1,19 @@
 import {
-  fetchFloodDatesJson,
-  getLatestFloodDate,
   buildFloodEmailPayload,
+  fetchFloodDatesJson,
+  floodLastStateKey,
+  getLatestFloodDate,
+  resolveFloodEmailCopy,
+  stripLegacyMozFloodKey,
   transformLastProcessedFlood,
 } from './alert';
 import { sendFloodAlertEmail } from '../utils/email';
-import { runAAWorker } from '../aa-common/runner';
+import {
+  findAllAnticipatoryActionAlertsByType,
+  updateAnticipatoryActionAlert,
+} from '../db/aa-queries';
+import type { AAFloodAlertMetadata } from '../types/aa-flood-metadata';
+import type { AnticipatoryActionAlert } from '../types/anticipatory-action-alerts';
 import { TriggerStatus } from '../types/flood-email';
 
 const args = process.argv.slice(2);
@@ -18,61 +26,118 @@ const overrideEmails: string[] = testEmailArg
       .filter(Boolean)
   : [];
 
-export const COUNTRY = 'mozambique';
+const IS_TEST = overrideEmails.length > 0;
+
+const TEST_ALERT_ROW: AnticipatoryActionAlert = {
+  id: 1,
+  country: 'Mozambique',
+  type: 'flood',
+  emails: overrideEmails,
+  prismUrl: 'https://prism.moz.wfp.org',
+  metadata: {
+    floodDatesUrl:
+      'https://data.earthobservation.vam.wfp.org/public-share/aa/flood/moz/dates.json',
+  },
+};
+
+async function tickOneAlert(alert: AnticipatoryActionAlert): Promise<void> {
+  const meta = alert.metadata as AAFloodAlertMetadata | undefined;
+  const datesUrl = meta?.floodDatesUrl;
+  if (!datesUrl || typeof datesUrl !== 'string') {
+    console.error(
+      `Skipping flood alert id=${alert.id}: metadata.floodDatesUrl missing or invalid`,
+    );
+    return;
+  }
+
+  const emails = IS_TEST ? overrideEmails : alert.emails;
+  const dates = await fetchFloodDatesJson(datesUrl);
+  const latestDate = getLatestFloodDate(dates);
+  const triggerRaw = latestDate ? dates[latestDate]?.trigger_status : null;
+
+  const touchRanOnly = async (
+    nextStates: Record<string, { status: string; refTime: string }>,
+  ) => {
+    if (IS_TEST) {
+      return;
+    }
+    await updateAnticipatoryActionAlert(alert.id, {
+      lastStates: nextStates,
+      lastRanAt: new Date(),
+      lastTriggeredAt: null,
+    });
+  };
+
+  if (!latestDate) {
+    await touchRanOnly(stripLegacyMozFloodKey(alert.lastStates));
+    return;
+  }
+
+  const lastStateKey = floodLastStateKey(alert.id);
+  const lastProcessedRefTime =
+    !IS_TEST &&
+    (alert.lastStates?.[lastStateKey]?.refTime ??
+      alert.lastStates?.moz_flood?.refTime);
+
+  const isNewDate =
+    !lastProcessedRefTime ||
+    new Date(latestDate) > new Date(lastProcessedRefTime);
+
+  if (!isNewDate) {
+    await touchRanOnly(stripLegacyMozFloodKey(alert.lastStates ?? {}));
+    return;
+  }
+
+  const stationSummaryFile = dates[latestDate]?.station_summary_file;
+  const baseDir = datesUrl.replace(/dates\.json$/i, '');
+  const stationSummaryUrl = stationSummaryFile
+    ? `${baseDir}${stationSummaryFile}`
+    : undefined;
+
+  const emailCopy = resolveFloodEmailCopy(alert);
+  const triggerStatus = (triggerRaw || 'not exceeded') as TriggerStatus;
+
+  const payload = await buildFloodEmailPayload(
+    latestDate,
+    triggerStatus,
+    alert.prismUrl,
+    emails,
+    stationSummaryUrl,
+    emailCopy,
+  );
+
+  const patch = transformLastProcessedFlood(
+    latestDate,
+    triggerStatus,
+    lastStateKey,
+  );
+  const updatedLastStates = {
+    ...stripLegacyMozFloodKey(alert.lastStates),
+    ...patch,
+  };
+
+  if (payload) {
+    await sendFloodAlertEmail(payload);
+  }
+
+  if (!IS_TEST) {
+    await updateAnticipatoryActionAlert(alert.id, {
+      lastStates: updatedLastStates,
+      lastRanAt: new Date(),
+      lastTriggeredAt: payload ? new Date() : null,
+    });
+  }
+}
 
 export async function run() {
-  await runAAWorker({
-    country: COUNTRY,
-    type: 'flood',
-    overrideEmails,
-    prepare: async () => {
-      const datesUrl =
-        'https://data.earthobservation.vam.wfp.org/public-share/aa/flood/moz/dates.json';
-      const dates = await fetchFloodDatesJson(datesUrl);
-      const latestDate = getLatestFloodDate(dates);
-      const triggerStatus = latestDate
-        ? dates[latestDate]?.trigger_status
-        : null;
-      return { dates, latestDate, triggerStatus };
-    },
-    buildForAlert: async (alert, context, isTest, emailsOverride) => {
-      if (!context.latestDate) {
-        return { payloads: [], updatedLastStates: alert.lastStates || {} };
-      }
-      const emails = isTest ? emailsOverride : alert.emails;
+  const alerts = IS_TEST ? [TEST_ALERT_ROW] : await findAllAnticipatoryActionAlertsByType('flood');
 
-      // Avoid sending duplicates: compare last processed date with latest available date
-      const lastProcessedRefTime =
-        !isTest && alert.lastStates
-          ? alert.lastStates['moz_flood']?.refTime
-          : undefined;
-      const isNewDate =
-        !lastProcessedRefTime ||
-        new Date(context.latestDate) > new Date(lastProcessedRefTime);
-      if (!isNewDate) {
-        return { payloads: [], updatedLastStates: alert.lastStates || {} };
-      }
+  if (!alerts.length && !IS_TEST) {
+    console.error('Error: No flood alert rows in anticipatory_action_alerts');
+    return;
+  }
 
-      // Get station summary URL from dates data
-      const stationSummaryFile =
-        context.dates[context.latestDate]?.station_summary_file;
-      const stationSummaryUrl = stationSummaryFile
-        ? `https://data.earthobservation.vam.wfp.org/public-share/aa/flood/moz/${stationSummaryFile}`
-        : undefined;
-
-      const payload = await buildFloodEmailPayload(
-        context.latestDate,
-        context.triggerStatus || ('not exceeded' as TriggerStatus),
-        alert.prismUrl,
-        emails,
-        stationSummaryUrl,
-      );
-      const updatedLastStates = transformLastProcessedFlood(
-        context.latestDate,
-        context.triggerStatus || '',
-      );
-      return { payloads: payload ? [payload] : [], updatedLastStates };
-    },
-    send: sendFloodAlertEmail,
-  });
+  for (const alert of alerts) {
+    await tickOneAlert(alert);
+  }
 }

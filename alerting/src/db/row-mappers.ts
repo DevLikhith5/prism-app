@@ -47,5 +47,6 @@ export function mapAnticipatoryActionAlertRow(
     lastStates: parseJsonb<
       Record<string, { status: string; refTime: string }>
     >(row.last_states),
+    metadata: parseJsonb<Record<string, unknown>>(row.metadata),
   };
 }

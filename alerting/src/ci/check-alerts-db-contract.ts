@@ -36,6 +36,7 @@ const AA_COLUMNS: Record<string, { data_type: string; udt_name: string }> = {
   },
   last_ran_at: { data_type: 'timestamp with time zone', udt_name: 'timestamptz' },
   last_states: { data_type: 'jsonb', udt_name: 'jsonb' },
+  metadata: { data_type: 'jsonb', udt_name: 'jsonb' },
 };
 
 function checkTable(

@@ -20,4 +20,12 @@ export interface FloodAlertEmailData {
   stationsByStatus?: Record<string, string[]>; // Groups stations by their trigger status
   redirectUrl: string;
   base64Image: string;
+  /** e.g. "Mozambique" */
+  countryDisplayName: string;
+  forecastLeadDaysPhrase: string;
+  /** After em dash in subtitle */
+  forecastAttributionLine: string;
+  disclaimerAuthorityHtml: string;
+  disclaimerAuthorityPlain: string;
+  mapAltCountry: string;
 }
