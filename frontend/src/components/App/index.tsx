@@ -6,6 +6,7 @@ import { ThemeProvider } from '@material-ui/core/styles';
 import { Font } from '@react-pdf/renderer';
 import * as Sentry from '@sentry/browser';
 import AuthModal from 'components/AuthModal';
+import CountryInvalidPage from 'components/CountryInvalidPage';
 import DashboardView from 'components/DashboardView';
 import ExportView from 'components/ExportView';
 import Login from 'components/Login';
@@ -13,13 +14,24 @@ import MapView from 'components/MapView';
 import NavBar from 'components/NavBar';
 import Notifier from 'components/Notifier';
 import { authRequired } from 'config';
+import { CountryIsoProvider } from 'context/CountryIsoProvider';
 import KhmerFont from 'fonts/Khmer-Regular.ttf';
 import RobotoFont from 'fonts/Roboto-Regular.ttf';
 import { useDashboardConfig } from 'hooks/useDashboardConfig';
 import { useDocumentLocale } from 'hooks/useDocumentLocale';
 import muiTheme from 'muiTheme';
 import { memo, useMemo } from 'react';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Route,
+  Switch,
+  useParams,
+} from 'react-router-dom';
+import {
+  isUrlDrivenDeployment,
+  isValidIso3Format,
+  normalizeIso3,
+} from 'utils/universal-utils';
 
 if (process.env.NODE_ENV && process.env.NODE_ENV !== 'development') {
   if (process.env.REACT_APP_SENTRY_URL) {
@@ -81,30 +93,90 @@ const Wrapper = memo(() => (
   </div>
 ));
 
+const UniversalWrapper = memo(() => (
+  <div id="app">
+    <NavBar />
+    <div style={{ paddingTop: '56px', height: 'calc(100% - 56px)' }}>
+      {/* @ts-expect-error - react-router-dom v5 types incompatible with React 18 */}
+      <Switch>
+        {/* @ts-expect-error - react-router-dom v5 types incompatible with React 18 */}
+        <Route path="/country/:iso3/dashboard/:path?" exact>
+          <DashboardView />
+        </Route>
+        {/* @ts-expect-error - react-router-dom v5 types incompatible with React 18 */}
+        <Route path="/country/:iso3">
+          <MapView />
+          <AuthModal />
+        </Route>
+      </Switch>
+    </div>
+  </div>
+));
+
+function UniversalCountryRoute() {
+  const { iso3: rawIso3 } = useParams<{ iso3: string }>();
+  const iso3 = normalizeIso3(rawIso3);
+
+  if (!isValidIso3Format(iso3)) {
+    return <CountryInvalidPage />;
+  }
+
+  return (
+    <CountryIsoProvider>
+      <UniversalWrapper />
+    </CountryIsoProvider>
+  );
+}
+
+function UniversalAppRoutes() {
+  return (
+    // @ts-expect-error - react-router-dom v5 types incompatible with React 18
+    <Switch>
+      {/* @ts-expect-error - react-router-dom v5 types incompatible with React 18 */}
+      <Route path="/export" exact>
+        <ExportView />
+      </Route>
+      {/* @ts-expect-error - react-router-dom v5 types incompatible with React 18 */}
+      <Route path="/country/:iso3" exact={false}>
+        <UniversalCountryRoute />
+      </Route>
+      {/* @ts-expect-error - react-router-dom v5 types incompatible with React 18 */}
+      <Route>
+        <CountryInvalidPage />
+      </Route>
+    </Switch>
+  );
+}
+
+function StandardAppRoutes() {
+  return (
+    // @ts-expect-error - react-router-dom v5 types incompatible with React 18
+    <Switch>
+      {/* @ts-expect-error - react-router-dom v5 types incompatible with React 18 */}
+      <Route path="/export" exact>
+        <ExportView />
+      </Route>
+      {/* @ts-expect-error - react-router-dom v5 types incompatible with React 18 */}
+      <Route>
+        <Wrapper />
+      </Route>
+    </Switch>
+  );
+}
+
 function App() {
   useDashboardConfig();
   useDocumentLocale();
   const isAuthenticated = useIsAuthenticated();
+  const urlDriven = isUrlDrivenDeployment();
 
   // The rendered content
   const renderedContent = useMemo(() => {
     if (isAuthenticated || !authRequired) {
-      return (
-        // @ts-expect-error - react-router-dom v5 types incompatible with React 18
-        <Switch>
-          {/* @ts-expect-error - react-router-dom v5 types incompatible with React 18 */}
-          <Route path="/export" exact>
-            <ExportView />
-          </Route>
-          {/* @ts-expect-error - react-router-dom v5 types incompatible with React 18 */}
-          <Route>
-            <Wrapper />
-          </Route>
-        </Switch>
-      );
+      return urlDriven ? <UniversalAppRoutes /> : <StandardAppRoutes />;
     }
     return <Login />;
-  }, [isAuthenticated]);
+  }, [isAuthenticated, urlDriven]);
 
   return (
     <ThemeProvider theme={muiTheme}>
