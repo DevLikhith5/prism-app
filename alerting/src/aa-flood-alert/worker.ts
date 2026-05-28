@@ -89,7 +89,7 @@ async function tickOneAlert(alert: AnticipatoryActionAlert): Promise<void> {
   }
 
   const stationSummaryFile = dates[latestDate]?.station_summary_file;
-  const baseDir = datesUrl.replace(/dates\.json$/i, '');
+  const baseDir = datesUrl.split('?')[0].replace(/dates\.json$/i, '');
   const stationSummaryUrl = stationSummaryFile
     ? `${baseDir}${stationSummaryFile}`
     : undefined;
