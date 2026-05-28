@@ -190,7 +190,7 @@ function ChartLocationSelector({
           label={t('Admin 1')}
           value={selectedAdmin1Area?.adminCode ?? ''}
           SelectProps={{
-            renderValue: renderAdmin1Value,
+            renderValue: (value: unknown) => renderAdmin1Value(value as string),
           }}
           onChange={handleAdmin1Change}
           variant="outlined"
@@ -211,7 +211,8 @@ function ChartLocationSelector({
             label={t('Admin 2')}
             value={selectedAdmin2Area?.adminCode ?? ''}
             SelectProps={{
-              renderValue: renderAdmin2Value,
+              renderValue: (value: unknown) =>
+                renderAdmin2Value(value as string),
             }}
             onChange={handleAdmin2Change}
             variant="outlined"
@@ -231,7 +232,8 @@ function ChartLocationSelector({
             label={t('Admin 3')}
             value={selectedAdmin3Area?.adminCode ?? ''}
             SelectProps={{
-              renderValue: renderAdmin3Value,
+              renderValue: (value: unknown) =>
+                renderAdmin3Value(value as string),
             }}
             onChange={handleAdmin3Change}
             variant="outlined"
