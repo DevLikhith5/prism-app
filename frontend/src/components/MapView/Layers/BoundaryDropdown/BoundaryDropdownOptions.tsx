@@ -227,7 +227,7 @@ const BoundaryDropdownOptions = React.forwardRef(
                     const boundariesToSelect = flattenedAreaList
                       .filter(b =>
                         newSelectedBoundaries.some(v =>
-                          String(b.adminCode).startsWith(String(v)),
+                          b.adminCode.startsWith(v),
                         ),
                       )
                       .map(b => b.adminCode);
@@ -242,8 +242,8 @@ const BoundaryDropdownOptions = React.forwardRef(
                   }
                   const features = combinedData.features.filter(f =>
                     boundaryLayers.some(layer =>
-                      String(f.properties?.[layer.adminCode])?.startsWith(
-                        String(area.adminCode),
+                      String(f.properties?.[layer.adminCode]).startsWith(
+                        area.adminCode,
                       ),
                     ),
                   );

@@ -1,3 +1,4 @@
+import { AdminCodeString } from 'config/types';
 import { getBoundaryLayerSingleton } from 'config/utils';
 import {
   getIsSelectionMode,
@@ -32,7 +33,9 @@ function SelectionLayer({ before }: { before?: string }) {
   const filteredData = {
     ...data,
     features: data.features.filter(cell =>
-      selectedBoundaries.includes(cell.properties?.[boundaryLayer.adminCode]),
+      selectedBoundaries.includes(
+        String(cell.properties?.[boundaryLayer.adminCode]) as AdminCodeString,
+      ),
     ),
   };
 
