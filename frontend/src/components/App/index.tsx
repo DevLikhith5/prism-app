@@ -28,7 +28,7 @@ import {
   useParams,
 } from 'react-router-dom';
 import {
-  isUrlDrivenDeployment,
+  isUniversalDeployment,
   isValidIso3Format,
   normalizeIso3,
 } from 'utils/universal-utils';
@@ -168,15 +168,15 @@ function App() {
   useDashboardConfig();
   useDocumentLocale();
   const isAuthenticated = useIsAuthenticated();
-  const urlDriven = isUrlDrivenDeployment();
+  const isUniversal = isUniversalDeployment();
 
   // The rendered content
   const renderedContent = useMemo(() => {
     if (isAuthenticated || !authRequired) {
-      return urlDriven ? <UniversalAppRoutes /> : <StandardAppRoutes />;
+      return isUniversal ? <UniversalAppRoutes /> : <StandardAppRoutes />;
     }
     return <Login />;
-  }, [isAuthenticated, urlDriven]);
+  }, [isAuthenticated, isUniversal]);
 
   return (
     <ThemeProvider theme={muiTheme}>

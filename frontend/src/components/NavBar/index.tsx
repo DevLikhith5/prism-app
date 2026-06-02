@@ -45,7 +45,7 @@ import {
   getUniversalDashboardPath,
   getUniversalMapPath,
 } from 'utils/universal-routing';
-import { isUrlDrivenDeployment } from 'utils/universal-utils';
+import { isUniversalDeployment } from 'utils/universal-utils';
 
 import PanelButton from './PanelButton';
 import PanelMenu from './PanelMenu';
@@ -64,10 +64,10 @@ function NavBar() {
   const dashboards = useSelector(dashboardsListSelector);
   const dashboardsAvailable = useSelector(areDashboardsAvailableSelector);
   const isDashboardMode = tabValue === Panel.Dashboard;
-  const urlDriven = isUrlDrivenDeployment();
+  const isUniversal = isUniversalDeployment();
   const { iso3 } = useCountryIso();
-  const mapPath = urlDriven ? getUniversalMapPath(iso3) : '/';
-  const dashboardBasePath = urlDriven
+  const mapPath = isUniversal ? getUniversalMapPath(iso3) : '/';
+  const dashboardBasePath = isUniversal
     ? getUniversalDashboardPath(iso3)
     : '/dashboard';
 
@@ -200,7 +200,7 @@ function NavBar() {
     if (panel.panel === Panel.Dashboard && child.reportPath) {
       dispatch(setTabValue(Panel.Dashboard));
       history.push(
-        urlDriven
+        isUniversal
           ? getUniversalDashboardPath(iso3, child.reportPath)
           : `/dashboard/${child.reportPath}`,
       );
