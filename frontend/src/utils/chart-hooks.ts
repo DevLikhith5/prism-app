@@ -9,7 +9,7 @@ import {
   LayerKey,
   WMSLayerProps,
 } from 'config/types';
-import { getBoundaryLayersByAdminLevel, LayerDefinitions } from 'config/utils';
+import { LayerDefinitions } from 'config/utils';
 import {
   AdminBoundaryRequestParams,
   CHART_DATA_PREFIXES,
@@ -23,17 +23,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { getChartAdminBoundaryParams } from 'utils/admin-utils';
 import { getTimeInMilliseconds } from 'utils/date-utils';
-import { useEffectiveCountryAdmin0Id } from 'utils/universal-country-admin';
-import { getEffectiveMultiCountry } from 'utils/universal-country-admin';
-import { isUrlDrivenDeployment } from 'utils/universal-utils';
+import {
+  useEffectiveBoundaryLayer,
+  useEffectiveCountryAdmin0Id,
+} from 'utils/universal-country-admin';
 
 import { useBoundaryData } from './useBoundaryData';
-
-const multiCountry = getEffectiveMultiCountry();
-const staticCountryAdmin0Id = appConfig.countryAdmin0Id;
-const isUrlDriven = isUrlDrivenDeployment();
-const MAX_ADMIN_LEVEL = isUrlDriven ? 4 : multiCountry ? 3 : 2;
-const boundaryLayer = getBoundaryLayersByAdminLevel(MAX_ADMIN_LEVEL);
 
 // Default date range: last 1 year
 const yearsToFetchDataFor = 1;
@@ -79,6 +74,7 @@ export const useChartForm = (
   options: UseChartFormOptions = {},
 ): UseChartFormReturn => {
   const countryAdmin0Id = useEffectiveCountryAdmin0Id();
+  const boundaryLayer = useEffectiveBoundaryLayer();
   const {
     initialChartLayerId,
     initialStartDate,
@@ -145,7 +141,7 @@ export const useChartForm = (
         data: boundaryDataResult.data,
         date: Date.now(),
       };
-    }, [boundaryDataResult.data]);
+    }, [boundaryDataResult.data, boundaryLayer]);
 
   // Derived values
   const selectedChartLayer = useMemo(
@@ -262,13 +258,13 @@ export const useChartData = (
     const adminKey = levelsDict[adminLevel.toString()];
 
     const { code: adminCode } = params.boundaryProps[adminKey] || {
-      code: countryAdmin0Id ?? staticCountryAdmin0Id,
+      code: countryAdmin0Id ?? appConfig.countryAdmin0Id,
     };
 
     return {
       ...params,
       level: adminLevel.toString(),
-      adminCode: adminCode || countryAdmin0Id || staticCountryAdmin0Id,
+      adminCode: adminCode || countryAdmin0Id || appConfig.countryAdmin0Id,
       startDate,
       endDate,
     };
