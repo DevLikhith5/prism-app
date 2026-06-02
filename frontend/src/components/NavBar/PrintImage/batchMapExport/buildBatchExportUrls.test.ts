@@ -30,6 +30,7 @@ const baseInput: BuildBatchExportUrlsInput = {
     logoVisibility: true,
     legendVisibility: true,
     footerVisibility: true,
+    batchMapsVisibility: false,
     bottomLogoVisibility: true,
   },
   selectedBoundaries: [],
